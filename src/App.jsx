@@ -15,7 +15,7 @@ function havePlayedAgainstRecently(p1, p2, history, roundsBack = 2) {
   let recent = history.slice(-roundsBack);
 
   return recent.some(h =>
-    h.matches?.some(m =>
+    h.matches.some(m =>
       (m.team1.includes(p1) && m.team2.includes(p2)) ||
       (m.team1.includes(p2) && m.team2.includes(p1))
     )
@@ -44,7 +44,7 @@ function generateSmartPairs(players, history) {
     ];
 
     let bestScore = Infinity;
-    let bestCombo = combos[0];
+    let best = combos[0];
 
     combos.forEach(combo => {
       let score = 0;
@@ -68,19 +68,19 @@ function generateSmartPairs(players, history) {
       let t1 = combo[0][0].points + combo[0][1].points;
       let t2 = combo[1][0].points + combo[1][1].points;
 
-      score += Math.abs(t1 - t2) * 0.1;
-      score += Math.random() * 2;
+      score += Math.abs(t1 - t2);
+      score += Math.random(); // väikene random
 
       if (score < bestScore) {
         bestScore = score;
-        bestCombo = combo;
+        best = combo;
       }
     });
 
     matches.push({
       court: matches.length + 1,
-      team1: bestCombo[0],
-      team2: bestCombo[1],
+      team1: best[0],
+      team2: best[1],
       score1: "",
       score2: ""
     });
@@ -139,8 +139,3 @@ export default function App() {
 
       newHistory.partners.push(
         [m.team1[0].name, m.team1[1].name],
-        [m.team2[0].name, m.team2[1].name]
-      );
-
-      newHistory.matches.push({
-        team1: m.team1.map(p => p.name),
