@@ -49,14 +49,12 @@ function generateSmartPairs(players, history) {
     combos.forEach(combo => {
       let score = 0;
 
-      // Partner kordus = väga halb
       combo.forEach(team => {
         if (havePlayedTogether(team[0].name, team[1].name, history)) {
           score += 50;
         }
       });
 
-      // Vastase kordus hiljuti = halb
       if (
         havePlayedAgainstRecently(
           combo[0][0].name,
@@ -67,13 +65,10 @@ function generateSmartPairs(players, history) {
         score += 20;
       }
 
-      // Tasakaal
       let t1 = combo[0][0].points + combo[0][1].points;
       let t2 = combo[1][0].points + combo[1][1].points;
 
       score += Math.abs(t1 - t2) * 0.1;
-
-      // väike random
       score += Math.random() * 2;
 
       if (score < bestScore) {
@@ -100,3 +95,52 @@ export default function App() {
   const [name, setName] = useState("");
   const [round, setRound] = useState(1);
   const [matches, setMatches] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [waitingPlayers, setWaitingPlayers] = useState([]);
+  const [tvMode, setTvMode] = useState(false);
+
+  const addPlayer = () => {
+    if (!name || players.find(p => p.name === name)) return;
+    setPlayers([...players, { name, points: 0 }]);
+    setName("");
+  };
+
+  const generateRound = () => {
+    const { matches, waiting } = generateSmartPairs(players, history);
+    setMatches(matches);
+    setWaitingPlayers(waiting);
+  };
+
+  const updateScore = (i, field, value) => {
+    let copy = [...matches];
+    copy[i][field] = value;
+    setMatches(copy);
+  };
+
+  const submitRound = () => {
+    let updated = [...players];
+
+    let newHistory = {
+      partners: [],
+      matches: []
+    };
+
+    matches.forEach(m => {
+      let s1 = parseInt(m.score1 || 0);
+      let s2 = parseInt(m.score2 || 0);
+
+      m.team1.forEach(p => {
+        updated.find(x => x.name === p.name).points += s1;
+      });
+
+      m.team2.forEach(p => {
+        updated.find(x => x.name === p.name).points += s2;
+      });
+
+      newHistory.partners.push(
+        [m.team1[0].name, m.team1[1].name],
+        [m.team2[0].name, m.team2[1].name]
+      );
+
+      newHistory.matches.push({
+        team1: m.team1.map(p => p.name),
