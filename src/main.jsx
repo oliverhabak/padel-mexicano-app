@@ -5,3 +5,6 @@ import App from "./App.jsx";
 ReactDOM.createRoot(document.getElementById("root")).render(
   <App />
 );
+
+console.log("NEW VERSION 2");
+``
