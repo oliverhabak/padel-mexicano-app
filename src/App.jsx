@@ -11,7 +11,18 @@ function havePlayedTogether(p1, p2, history) {
   );
 }
 
-// --- SMART PAIRING ---
+function havePlayedAgainstRecently(p1, p2, history, roundsBack = 2) {
+  let recent = history.slice(-roundsBack);
+
+  return recent.some(h =>
+    h.matches?.some(m =>
+      (m.team1.includes(p1) && m.team2.includes(p2)) ||
+      (m.team1.includes(p2) && m.team2.includes(p1))
+    )
+  );
+}
+
+// --- PRO PAIRING ---
 function generateSmartPairs(players, history) {
   let sorted = [...players].sort((a, b) => b.points - a.points);
 
@@ -26,23 +37,55 @@ function generateSmartPairs(players, history) {
       continue;
     }
 
-    let combos = [
+    const combos = [
       [[group[0], group[3]], [group[1], group[2]]],
       [[group[0], group[2]], [group[1], group[3]]],
       [[group[0], group[1]], [group[2], group[3]]]
     ];
 
-    let best = combos.find(c =>
-      !havePlayedTogether(c[0][0].name, c[0][1].name, history) &&
-      !havePlayedTogether(c[1][0].name, c[1][1].name, history)
-    );
+    let bestScore = Infinity;
+    let bestCombo = combos[0];
 
-    let chosen = best || combos[0];
+    combos.forEach(combo => {
+      let score = 0;
+
+      // Partner kordus = väga halb
+      combo.forEach(team => {
+        if (havePlayedTogether(team[0].name, team[1].name, history)) {
+          score += 50;
+        }
+      });
+
+      // Vastase kordus hiljuti = halb
+      if (
+        havePlayedAgainstRecently(
+          combo[0][0].name,
+          combo[1][0].name,
+          history
+        )
+      ) {
+        score += 20;
+      }
+
+      // Tasakaal
+      let t1 = combo[0][0].points + combo[0][1].points;
+      let t2 = combo[1][0].points + combo[1][1].points;
+
+      score += Math.abs(t1 - t2) * 0.1;
+
+      // väike random
+      score += Math.random() * 2;
+
+      if (score < bestScore) {
+        bestScore = score;
+        bestCombo = combo;
+      }
+    });
 
     matches.push({
       court: matches.length + 1,
-      team1: chosen[0],
-      team2: chosen[1],
+      team1: bestCombo[0],
+      team2: bestCombo[1],
       score1: "",
       score2: ""
     });
@@ -51,42 +94,9 @@ function generateSmartPairs(players, history) {
   return { matches, waiting };
 }
 
+// --- APP ---
 export default function App() {
   const [players, setPlayers] = useState([]);
   const [name, setName] = useState("");
   const [round, setRound] = useState(1);
   const [matches, setMatches] = useState([]);
-  const [history, setHistory] = useState([]);
-  const [waitingPlayers, setWaitingPlayers] = useState([]);
-
-  // --- Lisa mängija ---
-  const addPlayer = () => {
-    if (!name || players.find(p => p.name === name)) return;
-    setPlayers([...players, { name, points: 0 }]);
-    setName("");
-  };
-
-  // --- Genereeri voor ---
-  const generateRound = () => {
-    const { matches, waiting } = generateSmartPairs(players, history);
-    setMatches(matches);
-    setWaitingPlayers(waiting);
-  };
-
-  // --- Skoor update ---
-  const updateScore = (i, field, value) => {
-    let copy = [...matches];
-    copy[i][field] = value;
-    setMatches(copy);
-  };
-
-  // --- Salvesta voor ---
-  const submitRound = () => {
-    let updated = [...players];
-    let newHistory = { partners: [] };
-
-    matches.forEach(m => {
-      let s1 = parseInt(m.score1 || 0);
-      let s2 = parseInt(m.score2 || 0);
-
-      m.team1.forEach(p => {
